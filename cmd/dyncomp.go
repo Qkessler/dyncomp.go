@@ -32,8 +32,6 @@ func Execute() {
 }
 
 func run(cmd *cobra.Command, args []string) {
-	// TODO: Walk the directory tree upwards and get all dyncomp.json files
-	// up until the home directory.
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		fmt.Printf("Couldn't get the user home dir: %s", err)
@@ -49,6 +47,9 @@ func run(cmd *cobra.Command, args []string) {
 		return
 	}
 	configFiles, err := MergeConfigFiles(stopDirs, cwd)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	fmt.Println(configFiles)
 	// TODO: Compile all the commands into a map string

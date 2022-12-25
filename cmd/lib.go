@@ -3,17 +3,23 @@ package cmd
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 )
 
-const CONFIG_FILE_NAME string = "dyncomp.json"
+const CONFIG_FILE_NAME string = "dyncomp-go.json"
 
 func MergeConfigFiles(stopDirs map[string]bool, startDir string) (map[string]string, error) {
 	if len(stopDirs) == 0 {
 		return map[string]string{}, errors.New("Stop dirs should not be empty.")
+	}
+
+	if !any(stopDirs, func(stopDir string) bool {
+		return filepath.HasPrefix(startDir, stopDir)
+	}) {
+		return map[string]string{},
+			errors.New("Start dir should be contained whithin the stop dirs.")
 	}
 
 	configPathsChannel := make(chan string)
@@ -39,7 +45,6 @@ func MergeConfigFiles(stopDirs map[string]bool, startDir string) (map[string]str
 	for path := range configPathsChannel {
 		pathConfig, err := ParseConfigFile(path)
 		if err != nil {
-			fmt.Printf("Parsed %s incorrectly, returning current config\n", path)
 			return config, err
 		}
 
@@ -58,7 +63,6 @@ func ContainsConfigFile(directory string) (bool, string) {
 	if _, err := os.Stat(configPath); err == nil {
 		return true, configPath
 	}
-	fmt.Println("Doesn't contain a config file.")
 	return false, ""
 }
 
@@ -71,4 +75,13 @@ func ParseConfigFile(filePath string) (map[string]string, error) {
 	var configFileMap map[string]string
 	error := json.Unmarshal(contents, &configFileMap)
 	return configFileMap, error
+}
+
+func any(collection map[string]bool, f func(string) bool) bool {
+	for key := range collection {
+		if f(key) {
+			return true
+		}
+	}
+	return false
 }

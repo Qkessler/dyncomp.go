@@ -75,8 +75,17 @@ func TestMergeConfigFilesEmptyStopDirs(t *testing.T) {
 	_, err := MergeConfigFiles(map[string]bool{}, "")
 
 	if err == nil {
-		t.Fatalf("PullConfigFiles should error with empty stop dirs")
+		t.Fatalf("MergeConfigFiles should error with empty stop dirs")
 	}
+}
+
+func TestMergeConfigFilesUnrelatedStopAndStart(t *testing.T) {
+	_, err := MergeConfigFiles(map[string]bool{"/tmp": true}, "~/Documents")
+
+	if err == nil {
+		t.Fatalf("MergeConfigFiles should error with empty stop dirs")
+	}
+
 }
 
 func TestMergeConfigFiles(t *testing.T) {
@@ -104,6 +113,12 @@ func TestMergeConfigFiles(t *testing.T) {
 	config, err = MergeConfigFiles(map[string]bool{tempDir: true}, tempDir)
 	if value, _ := config["run"]; value != "from temp dir" {
 		t.Fatalf("Value is not correct, expecting temp config to take place")
+	}
+
+	writeStringToFile(subDirConfig, "incorrect json")
+	config, err = MergeConfigFiles(map[string]bool{tempDir: true}, subDir)
+	if err == nil {
+		t.Fatal("On incorrect subdir, we should return the empty config and error")
 	}
 
 	defer os.RemoveAll(subDir)
