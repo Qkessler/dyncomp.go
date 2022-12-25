@@ -33,8 +33,8 @@ func PullConfigFiles(stopDirs map[string]bool) ([]string, error) {
 		if err != nil {
 			fmt.Println(err)
 			return err
-		} else if fileInfo.IsDir() {
-			return nil
+		} else if fileInfo.IsDir() && path != cwd {
+			return fs.SkipDir
 		}
 
 		if stopDirs[path] {
