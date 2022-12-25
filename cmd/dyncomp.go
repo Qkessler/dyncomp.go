@@ -19,23 +19,7 @@ keys on your dyncomp.json configuration file.
 
 - dyncomp run
 - dyncomp test`,
-		Run: func(cmd *cobra.Command, args []string) {
-			// TODO: Walk the directory tree upwards and get all dyncomp.json files
-			// up until the home directory.
-			homeDir, err := os.UserHomeDir()
-			if err != nil {
-				fmt.Printf("Couldn't get the user home dir: %s", err)
-				return
-			}
-			stopDirs := map[string]bool{
-				homeDir: true,
-			}
-			configFiles, err := PullConfigFiles(stopDirs)
-
-			fmt.Println(configFiles)
-			// TODO: Compile all the commands into a map string
-			// TODO: Understand how to build the commands async with Go. Go Coroutines?
-		},
+		Run: run,
 	}
 }
 
@@ -45,4 +29,28 @@ func Execute() {
 		fmt.Println(error)
 		os.Exit(1)
 	}
+}
+
+func run(cmd *cobra.Command, args []string) {
+	// TODO: Walk the directory tree upwards and get all dyncomp.json files
+	// up until the home directory.
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Printf("Couldn't get the user home dir: %s", err)
+		return
+	}
+	stopDirs := map[string]bool{
+		homeDir: true,
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Error while getting the current working directory: %s", err)
+		return
+	}
+	configFiles, err := MergeConfigFiles(stopDirs, cwd)
+
+	fmt.Println(configFiles)
+	// TODO: Compile all the commands into a map string
+	// TODO: Understand how to build the commands async with Go. Go Coroutines?
 }

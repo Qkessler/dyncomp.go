@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -46,4 +48,80 @@ func TestParseConfigFile(t *testing.T) {
 		t.Fatalf("Run key should have value after parsing.")
 	}
 	defer os.Remove(tempFile.Name())
+}
+
+func TestContainsConfigFile(t *testing.T) {
+	tempDir := t.TempDir()
+	tempFile, err := os.Create(filepath.Join(tempDir, CONFIG_FILE_NAME))
+	if err != nil {
+		t.Fatalf("Error when creating the temp file for reading: %s", err)
+	}
+
+	present, _ := ContainsConfigFile(tempDir)
+	if !present {
+		t.Fatalf("File should be present after creating it.")
+	}
+	defer os.Remove(tempFile.Name())
+}
+
+func TestContainsConfigFileUnexistent(t *testing.T) {
+	present, _ := ContainsConfigFile(t.TempDir())
+	if present {
+		t.Fatalf("File should not be present on a temporary directory.")
+	}
+}
+
+func TestMergeConfigFilesEmptyStopDirs(t *testing.T) {
+	_, err := MergeConfigFiles(map[string]bool{}, "")
+
+	if err == nil {
+		t.Fatalf("PullConfigFiles should error with empty stop dirs")
+	}
+}
+
+func TestMergeConfigFiles(t *testing.T) {
+	tempDir := t.TempDir()
+	subDir := filepath.Join(tempDir, "subdir")
+	tempDirConfig := filepath.Join(tempDir, CONFIG_FILE_NAME)
+	subDirConfig := filepath.Join(subDir, CONFIG_FILE_NAME)
+
+	os.Create(tempDirConfig)
+	os.Mkdir(subDir, 0777)
+	os.Create(subDirConfig)
+
+	writeStringToFile(tempDirConfig, "{\"run\": \"from temp dir\"}")
+	writeStringToFile(subDirConfig, "{\"run\": \"from sub dir\"}")
+
+	config, err := MergeConfigFiles(map[string]bool{tempDir: true}, subDir)
+	if err != nil {
+		t.Fatalf("Error merging config files: %s", err)
+	}
+
+	if value, _ := config["run"]; value != "from sub dir" {
+		t.Fatalf("Value is not correct, expecting subdir config to take place")
+	}
+
+	config, err = MergeConfigFiles(map[string]bool{tempDir: true}, tempDir)
+	if value, _ := config["run"]; value != "from temp dir" {
+		t.Fatalf("Value is not correct, expecting temp config to take place")
+	}
+
+	defer os.RemoveAll(subDir)
+	defer os.Remove(subDirConfig)
+	defer os.Remove(tempDirConfig)
+}
+
+func writeStringToFile(filePath string, toWrite string) error {
+	fd, err := os.OpenFile(filePath, os.O_WRONLY, 0666)
+	if err != nil {
+		return err
+	}
+
+	if _, err := fd.WriteString(toWrite); err != nil {
+		fmt.Println("writeStringToFile: ", err)
+		return err
+	}
+	fd.Close()
+
+	return nil
 }
