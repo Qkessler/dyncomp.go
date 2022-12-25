@@ -52,6 +52,5 @@ func run(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Println(configFiles)
-	// TODO: Compile all the commands into a map string
 	// TODO: Understand how to build the commands async with Go. Go Coroutines?
 }
