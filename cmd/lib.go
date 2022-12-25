@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,50 +12,52 @@ import (
 // when working elsewhere. We want to stop somewhere that makes sense.
 // Was thinking that we can give the user the control of what are the paths that we
 // should stop for.
-func PullConfigFiles(stopDirs map[string]bool) ([]string, error) {
+func PullConfigFiles(stopDirs map[string]bool) (*map[string]string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Error while getting the current working directory: %s", err)
-		return []string{}, err
+		return &map[string]string{}, err
 	}
 
-	// FIXME: This is currently walking downwards.
-	var configPaths []string
-	filepath.WalkDir(cwd, func(path string, dirEntry fs.DirEntry, err error) error {
-		fmt.Println(path)
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-
-		fileInfo, err := dirEntry.Info()
-		if err != nil {
-			fmt.Println(err)
-			return err
-		} else if fileInfo.IsDir() && path != cwd {
-			return fs.SkipDir
-		}
-
-		if stopDirs[path] {
-			configPath := filepath.Join(path, "dyncomp.json")
-			if _, err := os.Stat(configPath); err == nil {
-				configPaths = append(configPaths, configPath)
+	configPathsChannel := make(chan string)
+	go func() {
+		currentDir := cwd
+		for {
+			present, configPath := ContainsConfigFile(currentDir)
+			fmt.Println(present, configPath)
+			if present {
+				configPathsChannel <- configPath
 			}
 
-			return fs.SkipDir
-		}
-		if IsConfigFile(fileInfo.Name()) {
-			configPaths = append(configPaths, path)
-			return nil
+			if stopDirs[currentDir] {
+				fmt.Printf("stopDirs contains currentDir: %s\n", currentDir)
+				break
+			}
+
+			currentDir = filepath.Dir(currentDir)
+			fmt.Printf("Moving up the directory tree: %s\n", currentDir)
 		}
 
-		return err
-	})
-	return configPaths, nil
+		close(configPathsChannel)
+	}()
+
+	for path := range configPathsChannel {
+		fmt.Printf("path from channel: %s\n", path)
+	}
+
+	return &map[string]string{}, nil
 }
 
 func IsConfigFile(fileName string) bool {
 	return fileName == "dyncomp.json"
+}
+
+func ContainsConfigFile(directory string) (bool, string) {
+	configPath := filepath.Join(directory, "dyncomp.json")
+	if _, err := os.Stat(configPath); err == nil {
+		return true, configPath
+	}
+	return false, ""
 }
 
 func ParseConfigFile(filePath string) (map[string]string, error) {
