@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -133,7 +132,6 @@ func writeStringToFile(filePath string, toWrite string) error {
 	}
 
 	if _, err := fd.WriteString(toWrite); err != nil {
-		fmt.Println("writeStringToFile: ", err)
 		return err
 	}
 	fd.Close()

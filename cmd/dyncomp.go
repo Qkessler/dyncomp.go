@@ -19,7 +19,7 @@ keys on your dyncomp.json configuration file.
 
 - dyncomp run
 - dyncomp test`,
-		Run: run,
+		Run: RunCommand,
 	}
 }
 
@@ -31,10 +31,15 @@ func Execute() {
 	}
 }
 
-func run(cmd *cobra.Command, args []string) {
+func RunCommand(cmd *cobra.Command, args []string) {
+	if len(args) != 1 {
+		fmt.Printf("Usage: dyncomp COMMAND_NAME\n")
+		return
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Printf("Couldn't get the user home dir: %s", err)
+		fmt.Printf("Couldn't get the user home dir: %s\n", err)
 		return
 	}
 	stopDirs := map[string]bool{
@@ -43,14 +48,30 @@ func run(cmd *cobra.Command, args []string) {
 
 	cwd, err := os.Getwd()
 	if err != nil {
-		fmt.Printf("Error while getting the current working directory: %s", err)
+		fmt.Printf("Error while getting the current working directory: %s\n", err)
 		return
 	}
 	configFiles, err := MergeConfigFiles(stopDirs, cwd)
 	if err != nil {
 		fmt.Println(err)
+		return
 	}
 
-	fmt.Println(configFiles)
-	// TODO: Understand how to build the commands async with Go. Go Coroutines?
+	commandName, present := configFiles[args[0]]
+	if !present {
+		fmt.Printf("Command \"%s\" not found, add it to your %s file.\n", args[0], CONFIG_FILE_NAME)
+		return
+	}
+	command, err := BuildDynamicCommand(commandName)
+	if err != nil {
+		fmt.Printf("Error building selected command: \"%s\", error: %s\n", args[0], err)
+		return
+	}
+
+	output, err := command.CombinedOutput()
+	if err != nil {
+		fmt.Printf("Error running selected command: \"%s\", error: %s\n", args[0], err)
+	}
+
+	fmt.Println(string(output[:]))
 }
