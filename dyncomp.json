@@ -1,4 +1,8 @@
 {
     "test": "go test -v -cover ./...",
-    "run": "go run main.go test"
+    "run": "go run main.go test",
+
+    "for_tests": "echo -n 'EXPECTED TEST OUTPUT'",
+    "empty_key": "",
+    "should_error_key": "unexistent_dyncomp_command"
 }
