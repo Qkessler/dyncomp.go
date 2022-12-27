@@ -1,6 +1,4 @@
 {
-    "commands": {
-        "test": "go test -v -cover ./...",
-        "run": "go run main.go"
-    }
+    "test": "go test -v -cover ./...",
+    "run": "go run main.go test"
 }

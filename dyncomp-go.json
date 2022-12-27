@@ -1,4 +1,0 @@
-{
-    "test": "go test -v -cover ./...",
-    "run": "go run main.go test"
-}

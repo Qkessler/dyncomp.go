@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-const CONFIG_FILE_NAME string = "dyncomp-go.json"
+const CONFIG_FILE_NAME string = "dyncomp.json"
 
 func MergeConfigFiles(stopDirs map[string]bool, startDir string) (map[string]string, error) {
 	if len(stopDirs) == 0 {
