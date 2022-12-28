@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
+
+	"github.com/spf13/viper"
 )
 
 const FOR_TESTS_KEY string = "for_tests"
@@ -48,7 +51,6 @@ func TestRunCommandErrorMergeConflictFiles(t *testing.T) {
 	if output.String() != ERROR_START_DIR_CONTAINED {
 		t.Fatalf("With directory changed, should have incorrect start dir.")
 	}
-
 }
 
 func TestRunCommandUnexistentConfigKey(t *testing.T) {
@@ -90,5 +92,56 @@ func TestRunCommandHappyPathWithForTestsKey(t *testing.T) {
 
 	if output.String() != "EXPECTED TEST OUTPUT\n" {
 		t.Fatalf("%s should be present on dyncomp.json file, and echo 'EXPECTED TESTS OUTPUT'", FOR_TESTS_KEY)
+	}
+}
+
+func TestPullStopDirsFromConfigEmptyShouldHaveHome(t *testing.T) {
+	var output bytes.Buffer
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "config.json")
+	tempFile, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("Shouldn't error when creating config file: %s", err)
+	}
+	defer os.Remove(path)
+
+	tempFile.WriteString(`{}`)
+
+	viper.Reset()
+	stopDirs, err := PullStopDirsFromConfig(&output, tempDir)
+	if err != nil {
+		t.Fatalf("Shouldn't error when files created correctly: %s", err)
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatalf("UserHomeDir should be defined correctly.")
+	}
+
+	if !reflect.DeepEqual(stopDirs, map[string]bool{ homeDir: true }) {
+		t.Fatalf("With empty config, we should have HOME as stop dir.")
+	}
+}
+
+func TestPullStopDirsFromConfigSetShouldBeCorrect(t *testing.T) {
+	var output bytes.Buffer
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "config.json")
+	tempFile, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("Shouldn't error when creating config file: %s", err)
+	}
+	defer os.Remove(path)
+
+	tempFile.WriteString(fmt.Sprintf(`{"%s": ["test path"]}`, STOP_DIRS_KEY))
+
+	viper.Reset()
+	stopDirs, err := PullStopDirsFromConfig(&output, tempDir)
+	if err != nil {
+		t.Fatalf("Shouldn't error when files created correctly: %s", err)
+	}
+
+	if !reflect.DeepEqual(stopDirs, map[string]bool{ "test path": true }) {
+		t.Fatalf("With set config, it should have the selected one.")
 	}
 }
