@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
+	"sync"
 
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -76,6 +79,9 @@ func PullStopDirsFromConfig(writer io.Writer, configPath string) (map[string]boo
 }
 
 func RunCommand(writer io.Writer, cmd *cobra.Command, args []string) {
+	BLUE := color.New(color.FgBlue)
+	GREEN := color.New(color.FgGreen)
+
 	if len(args) != 1 {
 		fmt.Fprintf(writer, USAGE)
 		return
@@ -104,16 +110,43 @@ func RunCommand(writer io.Writer, cmd *cobra.Command, args []string) {
 		fmt.Fprintf(writer, ERROR_NOT_FOUND, args[0], CONFIG_FILE_NAME)
 		return
 	}
+
+	BLUE.Fprintf(writer, "Running ")
+	GREEN.Fprintf(writer, "%s\n", commandString)
+
 	command, err := BuildDynamicCommand(commandString)
 	if err != nil {
 		fmt.Fprintf(writer, ERROR_BUILDING_COMMAND, args[0], err)
 		return
 	}
 
-	output, err := command.CombinedOutput()
-	if err != nil {
-		fmt.Fprintf(writer, ERROR_RUNNING_COMMAND, args[0], err)
+	commandReader, errStdout := command.StdoutPipe()
+	errReader, errStderr := command.StderrPipe()
+	if errStdout != nil || errStderr != nil {
+		fmt.Fprintf(writer, "Error creating the out pipe: stdout: %s, stderr: %s", errStdout, errStderr)
 	}
 
-	fmt.Fprintln(writer, string(output[:]))
+	outScanner := bufio.NewScanner(commandReader)
+	errScanner := bufio.NewScanner(errReader)
+
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(2)
+	go PrintAndNotifyWaitGroup(&writer, &waitGroup, outScanner)
+	go PrintAndNotifyWaitGroup(&writer, &waitGroup, errScanner)
+
+	command.Start()
+	waitGroup.Wait()
+
+	err = command.Wait()
+	if err != nil {
+		blue := color.New(color.FgBlue)
+		blue.Fprintf(writer, ERROR_RUNNING_COMMAND, args[0], err)
+	}
+}
+
+func PrintAndNotifyWaitGroup(writer *io.Writer, waitGroup *sync.WaitGroup, scanner *bufio.Scanner) {
+	for scanner.Scan() {
+		fmt.Fprintln(*writer, scanner.Text())
+	}
+	waitGroup.Done()
 }
