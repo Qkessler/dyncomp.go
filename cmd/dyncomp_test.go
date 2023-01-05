@@ -77,10 +77,8 @@ func TestRunCommandErrorRunningCommand(t *testing.T) {
 	var output bytes.Buffer
 
 	RunCommand(&output, CreateCommand(), []string{SHOULD_ERROR_KEY})
-
-	if output.String() != fmt.Sprintf(ERROR_RUNNING_COMMAND, SHOULD_ERROR_KEY,
-		`exec: "unexistent_dyncomp_command": executable file not found in $PATH
-`) {
+	if output.String() != fmt.Sprintf(ERROR_STARTING_COMMAND, SHOULD_ERROR_KEY,
+		`exec: "unexistent_dyncomp_command": executable file not found in $PATH`) {
 		t.Fatalf("Should error running command: %s", SHOULD_ERROR_KEY)
 	}
 }
@@ -118,7 +116,7 @@ func TestPullStopDirsFromConfigEmptyShouldHaveHome(t *testing.T) {
 		t.Fatalf("UserHomeDir should be defined correctly.")
 	}
 
-	if !reflect.DeepEqual(stopDirs, map[string]bool{ homeDir: true }) {
+	if !reflect.DeepEqual(stopDirs, map[string]bool{homeDir: true}) {
 		t.Fatalf("With empty config, we should have HOME as stop dir.")
 	}
 }
@@ -141,7 +139,7 @@ func TestPullStopDirsFromConfigSetShouldBeCorrect(t *testing.T) {
 		t.Fatalf("Shouldn't error when files created correctly: %s", err)
 	}
 
-	if !reflect.DeepEqual(stopDirs, map[string]bool{ "test path": true }) {
+	if !reflect.DeepEqual(stopDirs, map[string]bool{"test path": true}) {
 		t.Fatalf("With set config, it should have the selected one.")
 	}
 }

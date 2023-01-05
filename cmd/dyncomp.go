@@ -19,7 +19,8 @@ const ERROR_HOME_DIR string = "Couldn't get the user home dir: %s\n"
 const ERROR_CWD string = "Error while getting the current working directory: %s\n"
 const ERROR_NOT_FOUND string = "Command \"%s\" not found, add it to your %s file.\n"
 const ERROR_BUILDING_COMMAND string = "Error building selected command: \"%s\", error: %s\n"
-const ERROR_RUNNING_COMMAND string = "Error running selected command: \"%s\", error: %s\n"
+const ERROR_STARTING_COMMAND string = "Error running selected command: \"%s\", error: %s\n"
+const ERROR_WAITING_FOR_COMMAND string = "Error waiting for command: \"%s\", error: %s\n"
 const ERROR_READING_CONFIG string = "Error reading config, error: %s\n"
 
 type Config struct {
@@ -79,6 +80,7 @@ func PullStopDirsFromConfig(writer io.Writer, configPath string) (map[string]boo
 }
 
 func RunCommand(writer io.Writer, cmd *cobra.Command, args []string) {
+	RED := color.New(color.FgRed)
 	BLUE := color.New(color.FgBlue)
 	GREEN := color.New(color.FgGreen)
 
@@ -111,19 +113,20 @@ func RunCommand(writer io.Writer, cmd *cobra.Command, args []string) {
 		return
 	}
 
-	BLUE.Fprintf(writer, "Running ")
-	GREEN.Fprintf(writer, "%s\n", commandString)
-
 	command, err := BuildDynamicCommand(commandString)
 	if err != nil {
 		fmt.Fprintf(writer, ERROR_BUILDING_COMMAND, args[0], err)
 		return
 	}
 
+	BLUE.Fprintf(os.Stdout, "Running ")
+	GREEN.Fprintf(os.Stdout, "%s\n", commandString)
+
 	commandReader, errStdout := command.StdoutPipe()
 	errReader, errStderr := command.StderrPipe()
 	if errStdout != nil || errStderr != nil {
 		fmt.Fprintf(writer, "Error creating the out pipe: stdout: %s, stderr: %s", errStdout, errStderr)
+		return
 	}
 
 	outScanner := bufio.NewScanner(commandReader)
@@ -134,13 +137,15 @@ func RunCommand(writer io.Writer, cmd *cobra.Command, args []string) {
 	go PrintAndNotifyWaitGroup(&writer, &waitGroup, outScanner)
 	go PrintAndNotifyWaitGroup(&writer, &waitGroup, errScanner)
 
-	command.Start()
+	err = command.Start()
+	if err != nil {
+		RED.Fprintf(writer, ERROR_STARTING_COMMAND, args[0], err)
+		return
+	}
 	waitGroup.Wait()
-
 	err = command.Wait()
 	if err != nil {
-		blue := color.New(color.FgBlue)
-		blue.Fprintf(writer, ERROR_RUNNING_COMMAND, args[0], err)
+		RED.Fprintf(writer, ERROR_WAITING_FOR_COMMAND, commandString, err)
 	}
 }
 
